@@ -2,8 +2,9 @@
 include('../includes/header.php');
 function sanitizeInput($input)
 {
-    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+    return filter_var($input, FILTER_SANITIZE_STRING, FILTER_FLAG_NO_ENCODE_QUOTES);
 }
+
 
 $transaction_id = "";
 $supplier_id = "";

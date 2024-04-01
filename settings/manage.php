@@ -1,4 +1,4 @@
-<?php 
+<?php
 include('../includes/header_s.php');
 include('../includes/header.php');
 ?>
@@ -37,6 +37,10 @@ include('../includes/header.php');
                                         </div>
                                         <div class="modal-body">
                                             <form id="userForm" action="" method="POST">
+
+                                                <input type="hidden" id="operationType" name="operationType">
+                                                <input type="hidden" id="userId" name="userId">
+
                                                 <div class="form-group">
                                                     <label for="firstName">First Name:</label>
                                                     <input type="text" class="form-control" id="firstName" name="firstName" required>
@@ -98,20 +102,27 @@ include('../includes/header.php');
                                 </thead>
                                 <tbody>
                                     <?php
+                                    include('../includes/config.php');
+                                    function sanitizeInput($input)
+                                    {
+                                        // Remove HTML tags and encode special characters
+                                        return filter_var($input, FILTER_SANITIZE_STRING, FILTER_FLAG_NO_ENCODE_QUOTES);
+                                    }
+
                                     $sql = "SELECT * FROM tbl_user";
                                     $result = $conn->query($sql);
                                     if ($result->num_rows > 0) {
-                                        while ($row = $result->fetch_assoc()) { 
+                                        while ($row = $result->fetch_assoc()) {
                                             $type = $row['usertype'];
-                                            $status = $row['status'];?>
+                                            $status = $row['status']; ?>
                                             <tr>
-                                                <td><?php echo $row['fname'].' '.$row['lname'];?></td>
-                                                <td><?php echo $row['contact'];?></td>
-                                                <td><?php echo $row['email'];?></td>
-                                                <td><?php echo $row['username'];?></td>
+                                                <td><?php echo $row['fname'] . ' ' . $row['lname']; ?></td>
+                                                <td><?php echo $row['contact']; ?></td>
+                                                <td><?php echo $row['email']; ?></td>
+                                                <td><?php echo $row['username']; ?></td>
 
                                                 <td>
-                                                    <?php 
+                                                    <?php
                                                     if ($type == 1) {
                                                         echo '<span class="badge badge-success">Administrator</span>';
                                                     } elseif ($type == 2) {
@@ -122,7 +133,7 @@ include('../includes/header.php');
                                                     ?>
                                                 </td>
                                                 <td>
-                                                    <?php 
+                                                    <?php
                                                     if ($status == 1) {
                                                         echo '<span class="badge badge-success">Active</span>';
                                                     } elseif ($status == 2) {
@@ -131,7 +142,7 @@ include('../includes/header.php');
                                                     ?>
                                                 </td>
                                                 <td>
-                                                    <a href="#" class="btn btn-info btn-sm"><i class="fas fa-pencil-alt"></i></a>
+                                                    <a href="#" class="btn btn-info btn-sm editUser" data-id="<?php echo $row['user_id']; ?>" data-toggle="modal" data-target="#modal-user"><i class="fas fa-pencil-alt"></i></a>
                                                     <?php if ($status == 1) { ?>
                                                         <a href="#" class="btn btn-danger btn-sm deactUser" data-id="<?php echo $row['user_id']; ?>"><i class="fas fa-lock"></i></a>
                                                     <?php } elseif ($status == 2) { ?>
@@ -140,9 +151,8 @@ include('../includes/header.php');
                                                     <a href="#" class="btn btn-success btn-sm"><i class="fas fa-eye"></i></a>
                                                 </td>
                                             </tr>
-                                        <?php }
+                                    <?php }
                                     }
-                                    $conn->close();
                                     ?>
                                 </tbody>
                             </table>
@@ -153,38 +163,122 @@ include('../includes/header.php');
         </div>
     </section>
 </div>
-<?php include('../includes/footer_s.php');?>
+
+<?php include('../includes/footer_s.php'); ?>
 <script>
-    $(document).ready(function() {
-        // Function to toggle password visibility
-        $('#togglePassword').on('click', function() {
-            var passwordField = $('#password');
-            var passwordFieldType = passwordField.attr('type');
-            if (passwordFieldType === 'password') {
-                passwordField.attr('type', 'text');
-                $(this).text('Hide');
-            } else {
-                passwordField.attr('type', 'password');
-                $(this).text('Show');
-            }
-        });
-
-        // Function to validate password
-        function validatePassword(password) {
-            // Regex to check for at least one uppercase letter, one number, and one special character
-            var uppercaseRegex = /[A-Z]/;
-            var numberRegex = /[0-9]/;
-            var specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/;
-            return uppercaseRegex.test(password) && numberRegex.test(password) && specialCharRegex.test(password);
+ $(document).ready(function() {
+    // Function to toggle password visibility
+    $('#togglePassword').on('click', function() {
+        var passwordField = $('#password');
+        var passwordFieldType = passwordField.attr('type');
+        if (passwordFieldType === 'password') {
+            passwordField.attr('type', 'text');
+            $(this).text('Hide');
+        } else {
+            passwordField.attr('type', 'password');
+            $(this).text('Show');
         }
+    });
 
-        $('#userForm').submit(function(e) {
-            e.preventDefault();
+    // Function to validate password
+    function validatePassword(password) {
+        // Regex to check for at least one uppercase letter, one number, and one special character
+        var uppercaseRegex = /[A-Z]/;
+        var numberRegex = /[0-9]/;
+        var specialCharRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/;
+        return uppercaseRegex.test(password) && numberRegex.test(password) && specialCharRegex.test(password);
+    }
+
+    // Event listener for the Edit button
+    $('.editUser').on('click', function(e) {
+        e.preventDefault();
+
+        // Get user data from the row
+        var userId = $(this).data('id');
+        var firstName = $(this).closest('tr').find('td:eq(0)').text().split(' ')[0];
+        var lastName = $(this).closest('tr').find('td:eq(0)').text().split(' ')[1];
+        var contactNumber = $(this).closest('tr').find('td:eq(1)').text();
+        var emailAddress = $(this).closest('tr').find('td:eq(2)').text();
+        var username = $(this).closest('tr').find('td:eq(3)').text();
+        var designation = $(this).closest('tr').find('td:eq(4)').text();
+
+        $('#userId').val(userId);
+        $('#operationType').val('edit');
+        $('#firstName').val(firstName);
+        $('#lastName').val(lastName);
+        $('#contactNumber').val(contactNumber);
+        $('#emailAddress').val(emailAddress);
+        $('#username').val(username);
+        $('#designation').val(designation);
+
+        // Show the modal
+        $('#modal-user').modal('show');
+    });
+
+    // Event listener for the Deactivate button
+    $('.deactUser').on('click', function(e) {
+        e.preventDefault();
+
+        var userId = $(this).data('id');
+
+        if (confirm('Are you sure you want to deactivate this user?')) {
+            $.ajax({
+                type: 'POST',
+                url: '../ajax/ajax.php',
+                data: {
+                    action: 'deactUser',
+                    userId: userId
+                },
+                success: function(response) {
+                    console.log(response);
+                    location.reload();
+                },
+                error: function(error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+    });
+
+    // Event listener for the Activate button
+    $('.activateUser').on('click', function(e) {
+        e.preventDefault();
+
+        var userId = $(this).data('id');
+
+        if (confirm('Are you sure you want to activate this user?')) {
+            $.ajax({
+                type: 'POST',
+                url: '../ajax/ajax.php',
+                data: {
+                    action: 'activateUser',
+                    userId: userId
+                },
+                success: function(response) {
+                    console.log(response);
+                    location.reload();
+                },
+                error: function(error) {
+                    console.error('Error:', error);
+                }
+            });
+        }
+    });
+    
+    // Event listener for form submission
+    $('#userForm').submit(function(e) {
+        e.preventDefault();
+        
+        var operationType = $('#operationType').val();
+        
+        if (operationType === "add") {
+            // Adding a new user
             var password = $('#password').val();
             if (!validatePassword(password)) {
                 alert('Password must contain at least one uppercase letter, one number, and one special character.');
                 return false;
             }
+            
             var formData = $(this).serialize();
             $.ajax({
                 url: 'process_user.php',
@@ -199,52 +293,23 @@ include('../includes/header.php');
                     console.error(xhr.responseText);
                 }
             });
-        });
+        } else if (operationType === "edit") {
+            // Editing an existing user
+            var formData = $(this).serialize();
+            $.ajax({
+                url: 'process_user.php',
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    console.log(response);
+                    $('#modal-user').modal('hide');
+                    location.reload();
+                },
+                error: function(xhr, status, error) {
+                    console.error(xhr.responseText);
+                }
+            });
+        }
     });
-
-    $(document).ready(function() {
-        $('.deactUser').on('click', function(e) {
-            e.preventDefault();
-
-            var userId = $(this).data('id');
-
-            if (confirm('Are you sure you want to deactivate this user?')) {
-                $.ajax({
-                    type: 'POST',
-                    url: '../ajax/ajax.php',
-                    data: { action: 'deactUser', userId: userId },
-                    success: function(response) {
-                        console.log(response);
-                        location.reload();
-                    },
-                    error: function(error) {
-                        console.error('Error:', error);
-                    }
-                });
-            }
-        });
-    });
-
-    $(document).ready(function() {
-        $('.activateUser').on('click', function(e) {
-            e.preventDefault();
-
-            var userId = $(this).data('id');
-
-            if (confirm('Are you sure you want to activate this user?')) {
-                $.ajax({
-                    type: 'POST',
-                    url: '../ajax/ajax.php',
-                    data: { action: 'activateUser', userId: userId },
-                    success: function(response) {
-                        console.log(response);
-                        location.reload();
-                    },
-                    error: function(error) {
-                        console.error('Error:', error);
-                    }
-                });
-            }
-        });
-    });
+});
 </script>

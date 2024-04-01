@@ -1,11 +1,15 @@
 <?php
 include('../includes/config.php');
+
 function sanitizeInput($input)
 {
-    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+    // Remove HTML tags and encode special characters
+    return filter_var($input, FILTER_SANITIZE_STRING, FILTER_FLAG_NO_ENCODE_QUOTES);
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $operationType = sanitizeInput($_POST['operationType']);
+    $userId = sanitizeInput($_POST['userId']);
     $firstName = sanitizeInput(ucwords($_POST['firstName']));
     $lastName = sanitizeInput(ucwords($_POST['lastName']));
     $contactNumber = sanitizeInput($_POST['contactNumber']);
@@ -13,21 +17,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = sanitizeInput($_POST['username']);
     $designation = sanitizeInput($_POST['designation']);
 
-    // Generating a random password
     $password = $_POST['password'];
-
-    // Hashing the password using md5 (not recommended for secure password hashing)
     $hashedPassword = md5($password);
 
-    $sql = "INSERT INTO `tbl_user`(`fname`, `lname`, `username`, `email`, `contact`, `password`, `usertype`) VALUES ('$firstName', '$lastName', '$username', '$emailAddress', '$contactNumber', '$hashedPassword', '$designation')";
-
-    if ($conn->query($sql) === TRUE) {
-        echo "User added successfully!";
-    } else {
-        echo "Error: " . $sql . "<br>" . $conn->error;
+    if ($operationType === "add") {
+        $sql = "INSERT INTO `tbl_user`(`fname`, `lname`, `username`, `email`, `contact`, `password`, `usertype`) VALUES (?,?,?,?,?,?,?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssssss", $firstName, $lastName, $username, $emailAddress, $contactNumber, $hashedPassword, $designation);
+        
+        // Execute the SQL query for insert
+        if ($stmt->execute()) {
+            echo "User added successfully!";
+        } else {
+            echo "Error adding user: " . $stmt->error;
+        }
+    } else if ($operationType === 'edit') {
+        $sql = "UPDATE `tbl_user` SET `fname`=?, `lname`=?, `username`=?, `email`=?, `contact`=?, `usertype`=? WHERE `user_id`=?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ssssssi", $firstName, $lastName, $username, $emailAddress, $contactNumber, $designation, $userId);
+        
+        // Execute the SQL query for update
+        if ($stmt->execute()) {
+            echo "User updated successfully!";
+        } else {
+            echo "Error updating user: " . $stmt->error;
+        }
     }
-} else {
-    echo "Form data not received properly.";
+
+    $stmt->close();
 }
 
 $conn->close();
+?>

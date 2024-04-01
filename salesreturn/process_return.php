@@ -2,8 +2,10 @@
 include('../includes/config.php');
 function sanitizeInput($input)
 {
-    return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+    // Remove HTML tags and encode special characters
+    return filter_var($input, FILTER_SANITIZE_STRING, FILTER_FLAG_NO_ENCODE_QUOTES);
 }
+
 $transactionNumber = sanitizeInput($_POST['transaction_number']);
 
 // Update the stock in the database (adjust this according to your database structure)
